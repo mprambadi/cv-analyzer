@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: CV Atlas Agent API
+  version: 1.0.0
+  description: Agent-facing AI resume review. Send text, not uploaded files. Resume text is forwarded to configured 9router model. No browser CORS access.
+servers:
+  - url: https://cv-analyzer-api.mprambadi.workers.dev
+paths:
+  /health:
+    get:
+      summary: Check deployment configuration
+      responses:
+        '200':
+          description: Health status. configured=false means AI credentials missing.
+  /v1/analyze:
+    post:
+      summary: Review resume text with heuristics and AI
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resumeText]
+              properties:
+                resumeText:
+                  type: string
+                  minLength: 80
+                  maxLength: 30000
+                jobDescription:
+                  type: string
+                  maxLength: 12000
+                language:
+                  type: string
+                  enum: [en, id]
+                  default: en
+      responses:
+        '200':
+          description: Heuristic score and validated AI feedback. Heuristics are not actual ATS scores.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [heuristics, ai]
+                properties:
+                  heuristics:
+                    type: object
+                    description: Current CV Atlas heuristic report, including score, results, and original resume text.
+                    additionalProperties: true
+                  ai:
+                    type: object
+                    required: [summary, strengths, prioritizedFixes, suggestedEdits]
+                    properties:
+                      summary: { type: string }
+                      strengths:
+                        type: array
+                        items: { type: string }
+                      prioritizedFixes:
+                        type: array
+                        items: { type: string }
+                      suggestedEdits:
+                        type: array
+                        items: { type: string }
+        '400': { description: Invalid JSON or input }
+        '401': { description: Missing or invalid bearer token }
+        '413': { description: JSON exceeds 50 KB }
+        '415': { description: Expected application/json }
+        '502': { description: AI provider failed or returned invalid result }
+        '503': { description: Backend not configured }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
